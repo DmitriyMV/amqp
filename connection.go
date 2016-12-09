@@ -380,6 +380,7 @@ func (me *Connection) destruct(err *Error) {
 	if err != nil {
 		me.errors <- err
 	}
+	close(me.errors) // Since the channel is buffered, the waiting goroutine will recieve the result.
 
 	me.conn.Close()
 
@@ -640,7 +641,10 @@ func (me *Connection) call(req message, res ...message) error {
 	}
 
 	select {
-	case err := <-me.errors:
+	case err, ok := <-me.errors:
+		if !ok {
+			return ErrClosed
+		}
 		return err
 
 	case msg := <-me.rpc:
